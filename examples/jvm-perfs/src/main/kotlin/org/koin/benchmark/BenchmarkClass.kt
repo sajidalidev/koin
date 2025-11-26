@@ -43,21 +43,6 @@ open class BenchmarkClass {
         koinScenario(koin)
     }
 
-    @Benchmark
-    fun start400_Fu() {
-        koinApplication {
-            modules(perfModule400_Fu())
-        }.koin
-    }
-
-    @Benchmark
-    fun start400AndInject_Fu() {
-        val koin = koinApplication {
-            modules(perfModule400_Fu())
-        }.koin
-        koinScenario(koin)
-    }
-
     @OptIn(KoinInternalApi::class)
     @Benchmark
     fun flattenRecursive(state: BenchmarkState) {

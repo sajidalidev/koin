@@ -28,29 +28,38 @@ import org.koin.mp.KoinPlatformTools
 class ScopedInstanceFactory<T>(beanDefinition: BeanDefinition<T>, val holdInstance : Boolean = true) :
     InstanceFactory<T>(beanDefinition) {
 
-    private var values = hashMapOf<ScopeID, T>()
+    private var values = KoinPlatformTools.safeHashMap<ScopeID, T>()
 
     fun size() = values.size
 
     @PublishedApi
     internal fun saveValue(id : ScopeID, value : T){
-        values[id] = value
+        KoinPlatformTools.synchronized(this) {
+            values[id] = value
+        }
     }
 
-    override fun isCreated(context: ResolutionContext?): Boolean = (values[context?.scope?.id] != null)
+    override fun isCreated(context: ResolutionContext?): Boolean = KoinPlatformTools.synchronized(this) { (values[context?.scope?.id] != null) }
 
     override fun drop(scope: Scope?) {
-        scope?.let {
-            beanDefinition.callbacks.onClose?.invoke(values[it.id])
-            values.remove(it.id)
+        scope?.let { s ->
+            KoinPlatformTools.synchronized(this) {
+                val v = values.remove(s.id)
+                beanDefinition.callbacks.onClose?.invoke(v)
+            }
         }
     }
 
     override fun create(context: ResolutionContext): T {
-        return if (values[context.scope.id] == null) {
-            super.create(context)
+        val existing = values[context.scope.id]
+        return if (existing != null) {
+            existing
         } else {
-            values[context.scope.id] ?: throw MissingScopeValueException("Factory.create - Scoped instance not found for ${context.scope.id} in $beanDefinition")
+            val created = super.create(context)
+            if (holdInstance) {
+                values[context.scope.id] = created
+            }
+            created
         }
     }
 
@@ -58,20 +67,37 @@ class ScopedInstanceFactory<T>(beanDefinition: BeanDefinition<T>, val holdInstan
         if (context.scope.scopeQualifier != beanDefinition.scopeQualifier && context.scopeArchetype != beanDefinition.scopeQualifier) {
             error("Wrong Scope qualifier: trying to open instance for ${context.scope.id} in $beanDefinition")
         }
-        KoinPlatformTools.synchronized(this) {
-            if (!isCreated(context) && holdInstance) {
-                values[context.scope.id] = super.create(context)
+        return KoinPlatformTools.synchronized(this) {
+            val existing = values[context.scope.id]
+            if (existing != null) {
+                existing
+            } else {
+                val created = super.create(context)
+                if (holdInstance) {
+                    values[context.scope.id] = created
+                }
+                created
             }
         }
-        return values[context.scope.id] ?: throw MissingScopeValueException("Factory.get -Scoped instance not found for ${context.scope.id} in $beanDefinition")
     }
 
     override fun dropAll() {
-        values.clear()
+        KoinPlatformTools.synchronized(this) {
+            if (values.isNotEmpty()) {
+                val onClose = beanDefinition.callbacks.onClose
+                if (onClose != null) {
+                    // Invoke onClose for each stored instance
+                    values.values.forEach { v -> onClose.invoke(v) }
+                }
+                values.clear()
+            }
+        }
     }
 
     @Suppress("UNCHECKED_CAST")
     fun refreshInstance(scopeID: ScopeID, instance: Any) {
-        values[scopeID] = instance as T
+        KoinPlatformTools.synchronized(this) {
+            values[scopeID] = instance as T
+        }
     }
 }

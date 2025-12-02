@@ -39,7 +39,15 @@ class ScopedInstanceFactory<T>(beanDefinition: BeanDefinition<T>, val holdInstan
         }
     }
 
-    override fun isCreated(context: ResolutionContext?): Boolean = KoinPlatformTools.synchronized(this) { (values[context?.scope?.id] != null) }
+    override fun isCreated(context: ResolutionContext?): Boolean = KoinPlatformTools.synchronized(this) {
+        val scopeId = context?.scope?.id
+        if (scopeId == null) {
+            // When no specific context is provided, report if any instance exists for any scope
+            values.isNotEmpty()
+        } else {
+            values[scopeId] != null
+        }
+    }
 
     override fun drop(scope: Scope?) {
         scope?.let { s ->
@@ -72,6 +80,9 @@ class ScopedInstanceFactory<T>(beanDefinition: BeanDefinition<T>, val holdInstan
             if (existing != null) {
                 existing
             } else {
+                if (!holdInstance) {
+                    throw MissingScopeValueException("No value for scope '${context.scope.id}' in $beanDefinition")
+                }
                 val created = super.create(context)
                 if (holdInstance) {
                     values[context.scope.id] = created

@@ -30,7 +30,7 @@ class ScopedInstanceFactory<T>(beanDefinition: BeanDefinition<T>, val holdInstan
 
     private var values = KoinPlatformTools.safeHashMap<ScopeID, T>()
 
-    fun size() = values.size
+    fun size() = KoinPlatformTools.synchronized(this) { values.size }
 
     @PublishedApi
     internal fun saveValue(id : ScopeID, value : T){

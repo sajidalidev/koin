@@ -75,7 +75,7 @@ class CoreResolver(
             ?: resolveFromStackedParameters(scope,instanceContext)
             ?: resolveFromScopeSource(scope,instanceContext)
             ?: resolveFromScopeArchetype(scope,instanceContext)
-            ?: if (lookupParent) resolveFromParentScopes(scope,instanceContext) else null
+            ?: (if (lookupParent) resolveFromParentScopes(scope,instanceContext) else null)
             ?: resolveInExtensions(scope,instanceContext)
     }
 
@@ -113,7 +113,7 @@ class CoreResolver(
 
     @KoinExperimentalAPI
     private inline fun <T> resolveFromScopeArchetype(scope: Scope, ctx: ResolutionContext): T? {
-        if (scope.isRoot || scope.scopeQualifier !is TypeQualifier) return null
+        if (scope.isRoot || scope.scopeArchetype == null) return null
         ctx.logger.debug("|- ? ${ctx.debugTag} look at scope archetype")
         return _koin.instanceRegistry.resolveScopeArchetypeInstance<T>(ctx.qualifier, ctx.clazz, ctx)
     }
@@ -128,11 +128,13 @@ class CoreResolver(
         scope: Scope,
         ctx: ResolutionContext,
     ): T? {
-        val parentScopes = if (scope.linkedScopes.size > 1) flatten(scope.linkedScopes) else scope.linkedScopes
+        val hasSingleLink = scope.linkedScopes.size == 1
+        val parentScopes = if (!hasSingleLink && scope.linkedScopes.size > 1) flatten(scope.linkedScopes) else scope.linkedScopes
         return parentScopes.firstNotNullOfOrNull {
             ctx.logger.debug("|- ? ${ctx.debugTag} look in scope '${it.id}'")
             val instanceContext = if (!it.isRoot) ctx.newContextForScope(it) else ctx
-            resolveFromContextOrNull(it, instanceContext, lookupParent = false)
+            // If there is exactly one linked scope, allow traversal into its own parents (chained lookup)
+            resolveFromContextOrNull(it, instanceContext, lookupParent = hasSingleLink)
         }
     }
 

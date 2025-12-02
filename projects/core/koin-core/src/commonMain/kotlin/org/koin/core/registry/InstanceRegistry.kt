@@ -132,7 +132,12 @@ class InstanceRegistry(val _koin: Koin) {
         scopeQualifier: Qualifier,
         instanceContext: ResolutionContext,
     ): T? {
-        return resolveDefinition(clazz, qualifier, scopeQualifier)?.get(instanceContext) as? T
+        val factory = resolveDefinition(clazz, qualifier, scopeQualifier) ?: return null
+        return try {
+            factory.get(instanceContext) as? T
+        } catch (e: org.koin.core.error.MissingScopeValueException) {
+            null
+        }
     }
 
     @PublishedApi
@@ -194,7 +199,7 @@ class InstanceRegistry(val _koin: Koin) {
     }
 
     internal fun <T> getAll(clazz: KClass<*>, instanceContext: ResolutionContext): List<T> {
-        return _instances.values
+        val factories = _instances.values
             .filter { factory ->
                 (factory.beanDefinition.scopeQualifier == instanceContext.scope.scopeQualifier ||
                     factory.beanDefinition.scopeQualifier == instanceContext.scope.scopeArchetype
@@ -202,7 +207,8 @@ class InstanceRegistry(val _koin: Koin) {
                 (factory.beanDefinition.primaryType == clazz || factory.beanDefinition.secondaryTypes.contains(clazz))
             }
             .distinct()
-            .mapNotNull { it.get(instanceContext) as? T }
+            .sortedWith(compareBy({ it.beanDefinition.toString() }))
+        return factories.mapNotNull { it.get(instanceContext) as? T }
     }
 
     internal fun unloadModules(modules: Set<Module>) {

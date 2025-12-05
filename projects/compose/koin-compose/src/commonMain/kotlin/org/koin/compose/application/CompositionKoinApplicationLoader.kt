@@ -20,11 +20,13 @@ class CompositionKoinApplicationLoader(
     }
 
     override fun onAbandoned() {
+        koin?.logger?.warn("CompositionKoinApplicationLoader - onAbandoned")
         stop()
     }
 
     override fun onForgotten() {
-        stop()
+        koin?.logger?.debug("CompositionKoinApplicationLoader - onForgotten")
+        //don"t stop here, premature
     }
 
     override fun onRemembered() {
@@ -46,8 +48,8 @@ class CompositionKoinApplicationLoader(
     }
 
     private fun stop() {
+        koin?.logger?.warn("CompositionKoinApplicationLoader - stop")
         koin = null
-        KoinPlatform.getKoinOrNull()?.logger?.debug("$this -> stop Koin Application $koinApplication")
         stopKoin()
     }
 }

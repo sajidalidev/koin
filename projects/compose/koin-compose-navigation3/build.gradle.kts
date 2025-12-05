@@ -53,12 +53,13 @@ kotlin {
 }
 
 val androidCompileSDK: String by project
+val androidMinSDK : String by project
 
 android {
     namespace = "org.koin.compose.navigation3"
     compileSdk = androidCompileSDK.toInt()
     defaultConfig {
-        minSdk = 23
+        minSdk = androidMinSDK.toInt()
     }
 }
 

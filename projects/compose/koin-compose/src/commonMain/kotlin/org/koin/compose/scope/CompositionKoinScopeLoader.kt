@@ -31,10 +31,12 @@ class CompositionKoinScopeLoader(
     }
 
     override fun onForgotten() {
-        close()
+        scope.logger.debug("CompositionKoinScopeLoader onForgotten: '${scope.id}'")
+        //don"t stop here, premature
     }
 
     override fun onAbandoned() {
+        scope.logger.debug("CompositionKoinScopeLoader onAbandoned: '${scope.id}'")
         close()
     }
 

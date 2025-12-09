@@ -20,42 +20,15 @@ import org.koin.core.annotation.KoinExperimentalAPI
 import org.koin.core.annotation.KoinInternalApi
 import org.koin.core.error.NoDefinitionFoundException
 import org.koin.core.instance.ResolutionContext
-import org.koin.core.qualifier.TypeQualifier
 import org.koin.core.scope.Scope
 import org.koin.ext.getFullName
 
-/**
- * ResolutionExtension offers a way to extend Koin capacity to resolve instance in external systems
- * For example it allows to extend Koin to Ktor's internal DI, and make your Koin definition benefits from Ktor DI declared components
- *
- * Initially extracted from Scope, to help externalise resolution engine and extensions.
- *
- * Each extension has
- * - a name, to help display resolution debugs
- * - implement fun resolve(scope : Scope, instanceContext: ResolutionContext)
- *
- * @author Arnaud Giuliani
- */
-@OptIn(KoinInternalApi::class)
-interface ResolutionExtension {
-    /**
-     * Extension Name
-     */
-    val name : String
-
-    /**
-     * Resolve function for given scope and ResolutionContext
-     * @param scope
-     * @param instanceContext
-     */
-    fun resolve(scope : Scope, instanceContext: ResolutionContext) : Any?
-}
 
 /**
- *
+ * Resolver - optimised version
  */
 @KoinInternalApi
-class CoreResolver(
+class CoreResolverV2(
     private val _koin : Koin
 ) : InstanceResolver {
 
@@ -69,22 +42,61 @@ class CoreResolver(
         return resolveFromContextOrNull(scope,instanceContext) ?: throwNoDefinitionFound(instanceContext)
     }
 
-    private fun <T> resolveFromContextOrNull(scope : Scope, instanceContext: ResolutionContext, lookupParent : Boolean = true): T? {
-        return resolveFromInjectedParameters(instanceContext)
-            ?: resolveFromRegistry(scope,instanceContext)
+    private fun <T> resolveFromContextOrNull(scope : Scope, instanceContext: ResolutionContext): T? {
+        return resolveFromRegistry(scope, instanceContext)
+            ?: resolveFromInjectedParameters(instanceContext)
             ?: resolveFromStackedParameters(scope,instanceContext)
-            ?: resolveFromScopeSource(scope,instanceContext)
-            ?: resolveFromScopeArchetype(scope,instanceContext)
-            ?: (if (lookupParent) resolveFromParentScopes(scope,instanceContext) else null)
             ?: resolveInExtensions(scope,instanceContext)
     }
-
 
     private fun <T> resolveFromRegistry(
         scope: Scope,
         ctx: ResolutionContext
     ): T? {
-        return _koin.instanceRegistry.resolveInstance(ctx.qualifier, ctx.clazz, scope.scopeQualifier, ctx)
+        // direct definition
+        var factory = _koin.instanceRegistry.resolveDefinition(ctx.clazz,ctx.qualifier, scope.scopeQualifier)
+            ?: if (!scope.isRoot) scope.scopeArchetype?.let {
+                ctx.scopeArchetype = it
+                _koin.instanceRegistry.resolveDefinition(ctx.clazz,ctx.qualifier, it)
+            } else null
+        var newCtx = ctx
+        return if (factory != null){
+            factory.get(newCtx) as T?
+        }
+        else {
+            // scope source
+            if (!scope.isRoot && ctx.qualifier == null && ctx.clazz.isInstance(scope.sourceValue)) scope.sourceValue as? T
+            // parent scopes
+            else {
+                var lastScope : Scope? = null
+                val scopes =  flatten(scope.linkedScopes)
+                factory = scopes.firstNotNullOfOrNull {
+                    val foundDefinition = it.scopeArchetype?.let {
+                        _koin.instanceRegistry.resolveDefinition(
+                            ctx.clazz,
+                            ctx.qualifier,
+                            it
+                        )
+                    } ?:
+                    _koin.instanceRegistry.resolveDefinition(
+                        ctx.clazz,
+                        ctx.qualifier,
+                        it.scopeQualifier
+                    )
+                    if (foundDefinition != null){
+                        lastScope = it
+                    }
+                    foundDefinition
+                }
+                if (factory != null && lastScope != null && !lastScope.isRoot){
+                    newCtx = ctx.newContextForScope(lastScope)
+                    if (scope.scopeArchetype != null){
+                        newCtx.scopeArchetype = lastScope.scopeArchetype
+                    }
+                }
+                factory?.get(newCtx) as T?
+            }
+        }
     }
 
     private inline fun <T> resolveFromInjectedParameters(ctx: ResolutionContext): T? {
@@ -105,37 +117,17 @@ class CoreResolver(
         }
     }
 
-    private inline fun <T> resolveFromScopeSource(scope: Scope, ctx: ResolutionContext): T? {
-        if (scope.isRoot || scope.sourceValue == null || !(ctx.clazz.isInstance(scope.sourceValue) && ctx.qualifier == null)) return null
-        ctx.logger.debug("|- ? ${ctx.debugTag} look at scope source")
-        return if (ctx.clazz.isInstance(scope.sourceValue)) { scope.sourceValue as? T } else null
-    }
+//    private inline fun <T> resolveFromScopeSource(scope: Scope, ctx: ResolutionContext): T? {
+//        if (scope.isRoot || scope.sourceValue == null || !(ctx.clazz.isInstance(scope.sourceValue) && ctx.qualifier == null)) return null
+//        ctx.logger.debug("|- ? ${ctx.debugTag} look at scope source")
+//        return if (ctx.clazz.isInstance(scope.sourceValue)) { scope.sourceValue as? T } else null
+//    }
 
-    @KoinExperimentalAPI
+    @OptIn(KoinExperimentalAPI::class)
     private inline fun <T> resolveFromScopeArchetype(scope: Scope, ctx: ResolutionContext): T? {
         if (scope.isRoot || scope.scopeArchetype == null) return null
         ctx.logger.debug("|- ? ${ctx.debugTag} look at scope archetype")
         return _koin.instanceRegistry.resolveScopeArchetypeInstance<T>(ctx.qualifier, ctx.clazz, ctx)
-    }
-
-    private fun <T> resolveFromParentScopes(scope: Scope, ctx: ResolutionContext): T? {
-        if (scope.isRoot) return null
-        ctx.logger.debug("|- ? ${ctx.debugTag} look in other scopes")
-        return findInOtherScope(scope,ctx)
-    }
-
-    private fun <T> findInOtherScope(
-        scope: Scope,
-        ctx: ResolutionContext,
-    ): T? {
-        val hasSingleLink = scope.linkedScopes.size == 1
-        val parentScopes = if (!hasSingleLink && scope.linkedScopes.size > 1) flatten(scope.linkedScopes) else scope.linkedScopes
-        return parentScopes.firstNotNullOfOrNull {
-            ctx.logger.debug("|- ? ${ctx.debugTag} look in scope '${it.id}'")
-            val instanceContext = if (!it.isRoot) ctx.newContextForScope(it) else ctx
-            // If there is exactly one linked scope, allow traversal into its own parents (chained lookup)
-            resolveFromContextOrNull(it, instanceContext, lookupParent = hasSingleLink)
-        }
     }
 
     private inline fun <T> throwNoDefinitionFound(ctx: ResolutionContext): T {
@@ -154,24 +146,4 @@ class CoreResolver(
             it.resolve(scope,ctx) as T?
         }
     }
-}
-
-@KoinInternalApi
-fun flatten(scopes: List<Scope>): Set<Scope> {
-    val flatten = linkedSetOf<Scope>()
-    val stack = ArrayDeque(scopes.asReversed())
-
-    while (stack.isNotEmpty()) {
-        val current = stack.removeLast()
-        if (!flatten.add(current)) {
-            continue
-        }
-        for (scope in current.linkedScopes) {
-            if (scope !in flatten) {
-                stack += scope
-            }
-        }
-    }
-
-    return flatten
 }

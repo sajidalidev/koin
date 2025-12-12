@@ -38,6 +38,10 @@ kotlin {
     iosX64()
     iosArm64()
     iosSimulatorArm64()
+
+    tvosArm64()
+    tvosX64()
+    tvosSimulatorArm64()
     macosX64()
     macosArm64()
 

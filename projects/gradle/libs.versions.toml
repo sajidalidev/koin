@@ -21,16 +21,16 @@ dagger = "2.56"
 
 # Lifecycle
 androidx-lifecycle = "2.10.0" # Keep in sync with "jb-lifecycle"
-jb-lifecycle = "1.10.0"
+jb-lifecycle = "9999.0.0-SNAPSHOT"
 
 # Navigation
 androidx-navigation = "2.9.6" # Keep in sync with "jb-navigation"
 androidx-navigation3 = "1.0.0"
-jb-navigation = "1.10.0"
+jb-navigation = "9999.0.0-SNAPSHOT"
 
 # Compose
 #androidx-compose = "1.8.1" # Keep in sync with "jb-compose"
-jb-compose = "1.10.0"
+jb-compose = "9999.0.0-SNAPSHOT"
 
 # Test
 stately = "2.1.0"

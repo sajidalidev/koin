@@ -39,8 +39,11 @@ kotlin {
     iosSimulatorArm64()
     macosArm64()
 
-    tvosArm64()
-    tvosSimulatorArm64()
+    // tvOS not published for this module yet: org.jetbrains.androidx.navigation:navigation-compose's
+    // tvOS redirect resolves at the manifest-mapped version, but commonMain metadata compilation still
+    // loses androidx.navigation.NavBackStackEntry/NavController (transitive dependency gap in the
+    // fork's tvOS variant) - deferred, koin-compose / koin-compose-viewmodel are the field-critical
+    // modules.
 
     sourceSets {
         commonMain.dependencies {

@@ -39,8 +39,9 @@ kotlin {
     iosSimulatorArm64()
     macosArm64()
 
-    tvosArm64()
-    tvosSimulatorArm64()
+    // tvOS not published for this module yet: navigation add-ons (this module and
+    // koin-compose-viewmodel-navigation) are cut from the tvOS release scope for now - deferred,
+    // koin-compose / koin-compose-viewmodel are the field-critical modules.
 
     sourceSets {
         androidMain.dependencies {

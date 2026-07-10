@@ -7,10 +7,13 @@ pluginManagement {
                 includeGroupByRegex(".*android.*")
             }
         }
-        mavenLocal()
         gradlePluginPortal()
         mavenCentral()
     }
+}
+
+plugins {
+    id("dev.sajidali.compose-tvos") version "1.2.0"
 }
 
 dependencyResolutionManagement {
@@ -27,9 +30,7 @@ dependencyResolutionManagement {
 //                includeGroupAndSubgroups("io.ktor")
 //            }
 //        }
-        mavenLocal()
         mavenCentral()
-        maven("https://maven.pkg.jetbrains.space/public/p/compose/dev")
     }
 }
 

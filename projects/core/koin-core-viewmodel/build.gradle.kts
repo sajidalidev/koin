@@ -54,7 +54,13 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            api(project(":core:koin-core"))
+            // io.insert-koin:koin-core ships official tvOS klibs at this version - reference the
+            // external stock coordinate here (not project(":core:koin-core")) so this module's own
+            // tvOS publications don't declare a dependency on a dev.sajidali.koin:koin-core artifact
+            // we no longer publish (official tvOS coverage means it's out of fork scope), which would
+            // otherwise cause consumers to link two koin-core klibs (dev.sajidali + io.insert-koin)
+            // for the same symbols.
+            api("io.insert-koin:koin-core:$koinVersion")
             api(libs.jb.lifecycleViewmodel)
             api(libs.jb.lifecycleViewmodelSavedState)
         }

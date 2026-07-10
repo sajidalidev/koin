@@ -7,6 +7,7 @@ pluginManagement {
                 includeGroupByRegex(".*android.*")
             }
         }
+        mavenLocal()
         gradlePluginPortal()
         mavenCentral()
     }
@@ -26,7 +27,9 @@ dependencyResolutionManagement {
 //                includeGroupAndSubgroups("io.ktor")
 //            }
 //        }
+        mavenLocal()
         mavenCentral()
+        maven("https://maven.pkg.jetbrains.space/public/p/compose/dev")
     }
 }
 

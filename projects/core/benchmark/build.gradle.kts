@@ -10,7 +10,6 @@ plugins {
 kotlin {
     
     jvm()
-    macosX64()
     macosArm64()
 
 

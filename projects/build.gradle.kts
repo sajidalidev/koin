@@ -43,13 +43,17 @@ allprojects {
 
     val koinVersion: String by project
 
-    group = "io.insert-koin"
+    group = "dev.sajidali.koin"
     version = koinVersion
 
     apply(plugin = "org.jetbrains.dokka")
+    // Empty javadoc jar (no dependsOn/from of Dokka output): Central validation requires a
+    // javadoc artifact to be present, but wiring it to dokkaGeneratePublicationHtml pulls every
+    // platform's compiled output (including targets this fork never publishes, e.g. Android) into
+    // every publish task's graph, since the jar is attached to all MavenPublications alike. An
+    // empty jar is the standard accepted pattern for KMP releases (cf. vanniktech's
+    // JavadocJar.Empty) and keeps unrelated targets out of the tvOS-only publish graph.
     val javadocJar: TaskProvider<Jar> by tasks.registering(Jar::class) {
-        dependsOn("dokkaGeneratePublicationHtml")
         archiveClassifier.set("javadoc")
-        from(layout.buildDirectory.dir("dokka/html"))
     }
 }

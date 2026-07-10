@@ -13,8 +13,8 @@ configure<PublishingExtension> {
             }
             pom {
                 name.set("Koin")
-                description.set("KOIN - Kotlin simple Dependency Injection Framework")
-                url.set("https://insert-koin.io/")
+                description.set("KOIN - Kotlin simple Dependency Injection Framework. tvOS-enabled build of InsertKoinIO/koin (Apache-2.0)")
+                url.set("https://github.com/sajidalidev/koin")
                 licenses {
                     license {
                         name.set("The Apache Software License, Version 2.0")
@@ -22,13 +22,17 @@ configure<PublishingExtension> {
                     }
                 }
                 scm {
-                    url.set("https://github.com/InsertKoinIO/koin")
-                    connection.set("scm:git:https://github.com/InsertKoinIO/koin.git")
+                    url.set("https://github.com/sajidalidev/koin")
+                    connection.set("scm:git:https://github.com/sajidalidev/koin.git")
                 }
                 developers {
                     developer {
                         name.set("Arnaud Giuliani")
                         email.set("arnaud@kotzilla.io")
+                    }
+                    developer {
+                        name.set("Sajid Ali")
+                        email.set("sajidhanif865@gmail.com")
                     }
                 }
             }

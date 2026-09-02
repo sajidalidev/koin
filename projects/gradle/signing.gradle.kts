@@ -8,11 +8,9 @@ apply(plugin = "signing")
 // guaranteed to be assigned yet at task-creation time either), so an onlyIf/eager read
 // of `publication` throws/NPEs. Publish task names follow the stable Gradle convention
 // `publish<PublicationName>PublicationTo<...>`, which is safe to match on.
-val allowedPublicationTaskNamePrefixes = listOf(
-    "publishKotlinMultiplatformPublicationTo",
-    "publishTvosArm64PublicationTo",
-    "publishTvosSimulatorArm64PublicationTo",
-)
+val forkPublicationNames = listOf("KotlinMultiplatform", "TvosArm64", "TvosSimulatorArm64")
+val allowedPublicationTaskNamePrefixes = forkPublicationNames.map { "publish${it}PublicationTo" }
+val allowedSignTaskNames = forkPublicationNames.map { "sign${it}Publication" }
 // Fork scope: only the modules whose official io.insert-koin release ships NO tvOS artifacts.
 // Everything else (koin-core, koin-core-viewmodel since 4.2.2, ...) is consumed from upstream.
 val forkPublishedProjects = setOf(
@@ -37,14 +35,22 @@ fun getSigningPassword(): String =
 
 if (isReleaseBuild()) {
 
+    // Upstream depends on ALL Sign tasks from every publish task (KT-46466 workaround). For the
+    // tvOS-only fork that drags signAndroidReleasePublication -> bundleReleaseAar ->
+    // checkReleaseAarMetadata into every tvOS publish graph, which fails against compose 1.12.0's
+    // Android artifacts (they require compileSdk 37 / AGP 9.1). Only the Sign tasks of the
+    // publications this fork actually publishes are needed - the signing plugin already attaches
+    // each publication's own signatures as artifacts of that publication.
+    val forkSignTasks = tasks.withType<Sign>().matching { it.name in allowedSignTaskNames }
+
     tasks.withType<PublishToMavenLocal>().configureEach {
-        dependsOn(tasks.withType<Sign>())
+        dependsOn(forkSignTasks)
     }
     tasks.matching { it.name.endsWith("ToSonatypeRepository") }.configureEach {
-        dependsOn(tasks.withType<Sign>())
+        dependsOn(forkSignTasks)
     }
     tasks.matching { it.name.endsWith("ToNmcpRepository") }.configureEach {
-        dependsOn(tasks.withType<Sign>())
+        dependsOn(forkSignTasks)
     }
 
     configure<SigningExtension> {

@@ -13,9 +13,16 @@ val allowedPublicationTaskNamePrefixes = listOf(
     "publishTvosArm64PublicationTo",
     "publishTvosSimulatorArm64PublicationTo",
 )
+// Fork scope: only the modules whose official io.insert-koin release ships NO tvOS artifacts.
+// Everything else (koin-core, koin-core-viewmodel since 4.2.2, ...) is consumed from upstream.
+val forkPublishedProjects = setOf(
+    ":compose:koin-compose",
+    ":compose:koin-compose-viewmodel",
+)
+val inForkScope = project.path in forkPublishedProjects
 tasks.withType<AbstractPublishToMaven>().configureEach {
     onlyIf {
-        allowedPublicationTaskNamePrefixes.any { name.startsWith(it) }
+        inForkScope && allowedPublicationTaskNamePrefixes.any { name.startsWith(it) }
     }
 }
 

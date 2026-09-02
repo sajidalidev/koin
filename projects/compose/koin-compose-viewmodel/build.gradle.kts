@@ -45,7 +45,11 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             api(project(":compose:koin-compose"))
-            api(project(":core:koin-core-viewmodel"))
+            // io.insert-koin:koin-core-viewmodel ships official tvOS klibs since 4.2.2 - reference
+            // the stock coordinate (not project(":core:koin-core-viewmodel")) so this module's tvOS
+            // publications don't declare a dev.sajidali.koin:koin-core-viewmodel artifact the fork
+            // no longer publishes (see koin-compose for the duplicate-klib rationale).
+            api("io.insert-koin:koin-core-viewmodel:$koinVersion")
             api(libs.jb.composeViewmodel)
         }
         androidMain.dependencies {

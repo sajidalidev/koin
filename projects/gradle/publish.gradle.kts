@@ -27,7 +27,7 @@ configure<PublishingExtension> {
                     }
                     developer {
                         name.set("Sajid Ali")
-                        email.set("sajidhanif865@gmail.com")
+                        email.set("sajid@sajidali.dev")
                     }
                 }
             }
